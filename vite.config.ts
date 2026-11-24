@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: '/resume/',
+  base: '/moi_garazh/',
   plugins: [vue()],
   resolve: {
     alias: {

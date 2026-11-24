@@ -1,6 +1,6 @@
-import type { Car, Expense, OilChange, Refuel } from './domain'
+import type { Car, Expense, OilChange, Refuel } from '@/stores/garage/types'
 
-export function createDemo(): Car {
+export const createDemoCar = (): Car => {
   const oilChanges: OilChange[] = [
     { id: 'oil-1', date: '2025-10-07', odometer: 102040, oil: 'Toyota Castle SN 0W-20', comment: 'Масло и фильтр. Справочный объём по руководству — 3,7 л.' },
     { id: 'oil-2', date: '2026-04-09', odometer: 107810, oil: 'Toyota Castle SN 0W-20', comment: 'Заменён масляный фильтр. Справочный объём — 3,7 л.' },

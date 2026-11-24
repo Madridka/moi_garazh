@@ -1,211 +1,138 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef } from 'vue'
-import EditorDialog from './EditorDialog.vue'
-import ExpensesView from './ExpensesView.vue'
-import VehicleView from './VehicleView.vue'
-import { createId, profileName, vehicleName } from './domain'
-import type { Car, Entry, Note, OilChange } from './domain'
-import type { Editor, EditorValue } from './editor'
-import { RecordMissingError, useGarage } from './garage'
+import { computed, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
+import { useGarageStore } from '@/stores/garage/garage'
+import { useGarageEditor } from '@/composables/useGarageEditor'
+import type { EditorValue } from '@/stores/garage/editor.types'
+import { profileName } from '@/stores/garage/methods'
+import type { Car, Entry, Note, OilChange } from '@/stores/garage/types'
 
-type Page = 'expenses' | 'vehicle' | 'garage'
+import Button from 'primevue/button'
 
-const { garage, loadError, reload, save } = useGarage()
-const page = ref<Page>('expenses')
+import EditorDialog from '@/components/EditorDialog.vue'
+import GarageView from '@/views/GarageView.vue'
+import HomeView from '@/views/HomeView.vue'
+import JournalView from '@/views/JournalView.vue'
+import VehicleView from '@/views/VehicleView.vue'
+
+const navigation = [
+  { page: 'home', label: 'home.title', icon: 'pi pi-home' },
+  { page: 'journal', label: 'journal.title', icon: 'pi pi-wallet' },
+  { page: 'vehicle', label: 'vehicle.title', icon: 'pi pi-car' },
+] as const
+type Page = (typeof navigation)[number]['page'] | 'garage'
+
+const { t } = useI18n()
+const store = useGarageStore()
+const { garage, loadError } = storeToRefs(store)
+const { editor, editorError, editorBlocked, open, close, clearError, editEntry, editNote, editOil, saveEditor, removeEditor } = useGarageEditor()
+const page = ref<Page>('home')
 const viewedId = ref<string | null>(null)
-const editor = shallowRef<Editor | null>(null)
-const editorError = ref('')
-const pageError = ref('')
+const pageError = ref<ReturnType<typeof store.makePrimary>>(null)
+const main = ref<HTMLElement | null>(null)
+const current = computed(() => garage.value.cars.find(({ id }) => id === viewedId.value)
+  ?? garage.value.cars.find(({ id }) => id === garage.value.primaryCarId))
 
-const primary = computed(() => garage.value.cars.find(({ id }) => id === garage.value.primaryCarId))
-const current = computed(() => garage.value.cars.find(({ id }) => id === viewedId.value) ?? primary.value)
-const hasOwnCar = computed(() => garage.value.cars.some((car) => !car.demo))
-
-function show(next: Page) {
-  if (next === page.value) return
-  page.value = next
-  pageError.value = ''
+watch(page, () => {
+  main.value?.focus({ preventScroll: true })
   window.scrollTo(0, 0)
+}, { flush: 'post' })
+
+const show = (next: Page) => {
+  if (next === page.value) return
+  pageError.value = null
+  page.value = next
 }
 
-function openCar(car: Car) {
-  viewedId.value = car.id === garage.value.primaryCarId ? null : car.id
-  show('expenses')
+const openCar = (carId: string) => {
+  viewedId.value = carId === garage.value.primaryCarId ? null : carId
+  show('home')
 }
 
-function makePrimary(car: Car) {
-  pageError.value = save((draft) => { draft.primaryCarId = car.id })
+const makePrimary = (car: Car) => {
+  pageError.value = store.makePrimary(car.id)
   if (!pageError.value && viewedId.value === car.id) viewedId.value = null
 }
 
-function open(next: Editor) {
-  editorError.value = ''
-  pageError.value = ''
-  editor.value = next
+const editProfile = (record?: Car) => {
+  pageError.value = null
+  open({ kind: 'profile', record })
 }
 
-function editEntry(kind: Entry['kind'], record?: Entry) {
-  if (current.value) open({ kind: 'entry', carId: current.value.id, initialKind: kind, record })
+const addEntry = (kind: Entry['kind'] = 'expense') => {
+  if (current.value) editEntry(current.value.id, kind)
 }
 
-function editNote(record?: Note) {
-  if (current.value) open({ kind: 'note', carId: current.value.id, record })
+const editJournalEntry = (entry: Entry) => {
+  if (current.value) editEntry(current.value.id, entry.kind, entry)
 }
 
-function editOil(record?: OilChange) {
-  if (current.value) open({ kind: 'oil', carId: current.value.id, record })
+const openNoteEditor = (note?: Note) => {
+  if (current.value) editNote(current.value.id, note)
 }
 
-function close() {
-  editor.value = null
-  editorError.value = ''
+const openOilEditor = (record?: OilChange) => {
+  if (current.value) editOil(current.value.id, record)
 }
 
-function replace<T extends { id: string }>(records: T[], id: string | undefined, value: T) {
-  if (!id) {
-    records.push(value)
-    return
-  }
-  const index = records.findIndex((record) => record.id === id)
-  if (index < 0) throw new RecordMissingError()
-  records[index] = value
+const commitEditor = (data: EditorValue) => {
+  const addedCarId = saveEditor(data)
+  if (addedCarId) openCar(addedCarId)
 }
 
-function saveEditor(data: EditorValue) {
+const deleteRecord = (replacement: string) => {
   const active = editor.value
-  if (!active || active.kind !== data.kind) return
-  const originalId = active.record?.id
-  let addedCarId: string | undefined
-
-  editorError.value = save((draft) => {
-    const id = originalId ?? createId()
-    if (active.kind === 'profile' && data.kind === 'profile') {
-      if (originalId) {
-        const car = draft.cars.find((car) => car.id === originalId)
-        if (!car) throw new RecordMissingError()
-        Object.assign(car, data.value)
-      } else {
-        draft.cars.push({ ...data.value, id, notes: [], entries: [], oilChanges: [] })
-        addedCarId = id
-      }
-      return
-    }
-
-    if (active.kind === 'profile') return
-    const car = draft.cars.find((car) => car.id === active.carId)
-    if (!car) throw new RecordMissingError()
-    if (data.kind === 'entry') replace(car.entries, originalId, { ...data.value, id })
-    if (data.kind === 'note') replace(car.notes, originalId, { ...data.value, id })
-    if (data.kind === 'oil') replace(car.oilChanges, originalId, { ...data.value, id })
-  })
-
-  if (editorError.value) return
-  close()
-  if (addedCarId) {
-    const added = garage.value.cars.find((car) => car.id === addedCarId)
-    if (added) openCar(added)
-  }
-}
-
-function remove<T extends { id: string }>(records: T[], id: string) {
-  const index = records.findIndex((record) => record.id === id)
-  if (index < 0) throw new RecordMissingError()
-  records.splice(index, 1)
-}
-
-function removeEditor(replacement: string) {
-  const active = editor.value
-  const id = active?.record?.id
-  if (!active || !id) return
-  if (active.kind === 'profile' && active.record?.demo) return
-
-  editorError.value = save((draft) => {
-    if (active.kind === 'profile') {
-      remove(draft.cars, id)
-      if (draft.primaryCarId === id) {
-        if (draft.cars.length && !draft.cars.some((car) => car.id === replacement)) throw new RecordMissingError()
-        draft.primaryCarId = draft.cars.length ? replacement : null
-      }
-      return
-    }
-
-    const car = draft.cars.find((car) => car.id === active.carId)
-    if (!car) throw new RecordMissingError()
-    if (active.kind === 'entry') remove(car.entries, id)
-    if (active.kind === 'note') remove(car.notes, id)
-    if (active.kind === 'oil') remove(car.oilChanges, id)
-  })
-
-  if (editorError.value) return
-  close()
-  if (active.kind === 'profile' && viewedId.value === id) viewedId.value = null
+  removeEditor(replacement)
+  if (!editor.value && active?.kind === 'profile' && viewedId.value === active.record?.id) viewedId.value = null
 }
 </script>
 
 <template>
-  <div class="app-shell">
-    <header class="topbar">
-      <div class="frame topbar-inner">
-        <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>Мой гараж</span></div>
-        <button v-if="current" type="button" class="vehicle-switch" aria-label="Открыть гараж" @click="show('garage')">
-          <span class="vehicle-switch-text"><strong>{{ profileName(current) }}</strong><span>{{ current.demo ? 'Демо-авто' : current.id === garage.primaryCarId ? 'Главное авто' : 'Просмотр профиля' }}</span></span>
-          <span class="switch-chevron" aria-hidden="true"></span>
-        </button>
-      </div>
-    </header>
+  <a class="skip-link" href="#main-content">{{ t('app.skip') }}</a>
+  <header class="topbar">
+    <div class="frame topbar-inner">
+      <Button class="brand" type="button" @click="show('home')">
+        <span class="brand-icon pi pi-car" aria-hidden="true"></span>
+        <span>{{ t('app.title') }}</span>
+      </Button>
+      <Button v-if="current && !loadError" class="vehicle-switch" type="button"
+        :aria-label="t('garage.open', { car: profileName(current) })" @click="show('garage')">
+        <span class="switch-name">{{ profileName(current) }}</span>
+        <span v-if="current.demo" class="badge">{{ t('garage.demo') }}</span>
+        <span class="pi pi-angle-down" aria-hidden="true"></span>
+      </Button>
+    </div>
+  </header>
 
-    <main class="frame main-content" id="main-content">
-      <div v-if="loadError" class="error-panel" role="alert">
-        <p>{{ loadError }}</p>
-        <button class="button button-secondary" type="button" @click="reload">Повторить</button>
-      </div>
-      <p v-if="pageError && !loadError" class="error-message page-error" role="alert">{{ pageError }}</p>
+  <main id="main-content" ref="main" class="frame main-content" tabindex="-1">
+    <div v-if="loadError" class="error-panel" role="alert">
+      <p>{{ t(`storage.${loadError}`) }}</p>
+      <Button class="button button-secondary" type="button" :label="t('common.retry')" @click="store.reload()" />
+    </div>
+    <template v-else-if="current">
+      <p v-if="pageError" class="error-message page-error" role="alert">{{ t(`storage.${pageError}`) }}</p>
+      <HomeView v-if="page === 'home'" :car="current" @add="addEntry()" @journal="show('journal')" />
+      <JournalView v-else-if="page === 'journal'" :key="current.id" :car="current" @add="addEntry" @edit="editJournalEntry" />
+      <VehicleView v-else-if="page === 'vehicle'" :car="current" @edit="editProfile(current)"
+        @note="openNoteEditor" @oil="openOilEditor" />
+      <GarageView v-else :cars="garage.cars" :primary-car-id="garage.primaryCarId"
+        @add="editProfile()" @select="openCar($event.id)" @edit="editProfile" @primary="makePrimary" />
+    </template>
+  </main>
 
-      <template v-if="!loadError">
-        <template v-if="current">
-          <div v-if="current.demo && page !== 'garage'" class="demo-notice">
-            <strong>Демо-профиль</strong><span>Расходы и история обслуживания приведены для примера.</span>
-            <button v-if="!hasOwnCar" type="button" class="button button-secondary" @click="open({ kind: 'profile' })">Добавить своё авто</button>
-          </div>
+  <nav v-if="current && !loadError" class="bottom-nav" :aria-label="t('app.navigation')">
+    <div class="frame nav-inner">
+      <Button v-for="item in navigation" :key="item.page" type="button" class="nav-button"
+        :aria-current="page === item.page ? 'page' : undefined" @click="show(item.page)">
+        <span :class="item.icon" aria-hidden="true"></span>
+        <span>{{ t(item.label) }}</span>
+      </Button>
+    </div>
+  </nav>
 
-          <ExpensesView v-if="page === 'expenses'" :key="current.id" :car="current" @add="editEntry" @edit="editEntry($event.kind, $event)" />
-          <VehicleView v-else-if="page === 'vehicle'" :car="current" @edit="open({ kind: 'profile', record: current })" @note="editNote" @oil="editOil" />
-
-          <div v-else class="page-stack">
-            <div class="page-heading">
-              <h1>Гараж</h1>
-              <button type="button" class="button button-primary" @click="open({ kind: 'profile' })"><span class="plus" aria-hidden="true">+</span> Добавить авто</button>
-            </div>
-            <ul class="garage-list">
-              <li v-for="car in garage.cars" :key="car.id" class="garage-card">
-                <div class="garage-card-info">
-                  <h2>{{ profileName(car) }}</h2>
-                  <p v-if="car.name || car.year">{{ [car.name ? vehicleName(car) : '', car.year].filter(Boolean).join(' · ') }}</p>
-                  <div v-if="car.id === garage.primaryCarId || car.demo" class="garage-labels">
-                    <span v-if="car.id === garage.primaryCarId" class="garage-label">Главное авто</span>
-                    <span v-if="car.demo" class="garage-label demo-label">Демо</span>
-                  </div>
-                </div>
-                <div class="garage-actions">
-                  <button type="button" class="button button-secondary" @click="openCar(car)">Открыть</button>
-                  <button type="button" class="button button-quiet" @click="open({ kind: 'profile', record: car })">Редактировать</button>
-                  <button v-if="car.id !== garage.primaryCarId" type="button" class="button button-quiet" @click="makePrimary(car)">Сделать главным</button>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </template>
-      </template>
-    </main>
-
-    <nav v-if="current && !loadError" class="bottom-nav" aria-label="Основные разделы">
-      <div class="frame nav-inner">
-        <button type="button" :aria-current="page === 'expenses' ? 'page' : undefined" @click="show('expenses')"><span class="nav-icon icon-expenses" aria-hidden="true"></span>Траты</button>
-        <button type="button" :aria-current="page === 'vehicle' ? 'page' : undefined" @click="show('vehicle')"><span class="nav-icon icon-vehicle" aria-hidden="true"></span>Авто</button>
-      </div>
-    </nav>
-
-    <EditorDialog v-if="editor" :editor="editor" :error="editorError" :cars="garage.cars" :primary-car-id="garage.primaryCarId"
-      @close="close" @save="saveEditor" @remove="removeEditor" @clear-error="editorError = ''" />
-  </div>
+  <EditorDialog v-if="editor" :editor="editor" :blocked="editorBlocked" :cars="garage.cars"
+    :primary-car-id="garage.primaryCarId"
+    :error="editorError ? t(editorError === 'conflict' ? 'storage.editorConflict' : `storage.${editorError}`) : ''"
+    @close="close" @save="commitEditor" @remove="deleteRecord" @clear-error="clearError" />
 </template>

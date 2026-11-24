@@ -1,0 +1,66 @@
+.editor {
+  width: min(calc(100% - 24px), 32rem);
+  max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+.editor::backdrop { background: #12203a80; }
+.editor-form { display: grid; }
+.editor-header, .editor-actions, .editor-fields { padding: 14px 16px; }
+.editor-header, .editor-actions { display: flex; align-items: center; gap: 8px; background: var(--surface); }
+.editor-header { position: sticky; z-index: 1; top: 0; justify-content: space-between; border-bottom: 1px solid var(--line); }
+.editor-actions { border-top: 1px solid var(--line); }
+.editor-actions button:last-child { margin-left: auto; }
+.close-button {
+  display: grid;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: var(--soft);
+}
+.editor-fields { display: grid; gap: 12px; }
+.editor-fields label { display: grid; gap: 5px; min-width: 0; font-size: .9rem; font-weight: 650; }
+.editor-fields input:not([type='checkbox'], [type='radio']), .editor-fields select, .editor-fields textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 9px;
+  border: 1px solid #bfcadd;
+  border-radius: 8px;
+  background-color: var(--surface);
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 400;
+}
+.editor-fields select {
+  appearance: none;
+  padding-right: 29px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-repeat: no-repeat;
+  background-position: right 15px center, right 10px center;
+  background-size: 5px 5px;
+}
+.editor-fields textarea { resize: vertical; }
+.editor-fields input[type='date'] { appearance: none; }
+.editor-fields input[type='date']::-webkit-date-and-time-value { text-align: left; }
+.field-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.editor-fields label.check-field { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.check-field input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.record-types { display: flex; gap: 5px; min-width: 0; margin: 0; padding: 4px; border: 0; border-radius: 10px; background: #e9edf5; }
+.record-types label { position: relative; flex: 1 1 0; }
+.record-types input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.record-types span { display: grid; place-items: center; min-height: 44px; padding: 4px; border-radius: 7px; cursor: pointer; }
+.record-types input:checked + span { background: var(--surface); color: var(--accent); }
+.record-types input:focus-visible + span { outline: 2px solid var(--accent); }
+.required-mark { color: var(--danger); }
+
+@media (max-width: 22rem) {
+  .field-pair { grid-template-columns: 1fr; }
+}

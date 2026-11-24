@@ -1,4 +1,4 @@
-import type { Car, Entry, Note, OilChange, Profile } from './domain'
+import type { Car, Entry, Note, OilChange, Profile } from '@/stores/garage/types'
 
 export type Editor =
   | { kind: 'profile'; record?: Car }

@@ -164,7 +164,7 @@ function save() {
 
 <template>
   <dialog ref="dialog" class="editor" aria-labelledby="editor-title" @cancel.prevent="emit('close')">
-    <form class="editor-form" @submit.prevent="save" @input="clearError">
+    <form class="editor-form" novalidate @submit.prevent="save" @input="clearError">
       <header class="editor-header">
         <h2 id="editor-title">{{ title }}</h2>
         <button type="button" class="close-button" aria-label="Закрыть" @click="emit('close')">×</button>
@@ -174,7 +174,7 @@ function save() {
         <template v-if="confirming">
           <p v-if="profile">Профиль «{{ profileName(profile) }}» и все его записи будут удалены.</p>
           <p v-else>Запись будет удалена из истории автомобиля.</p>
-          <label v-if="needsReplacement">Новый главный автомобиль
+          <label v-if="needsReplacement"><span>Новый главный автомобиль <span class="required-mark" aria-hidden="true">*</span></span>
             <select v-model="replacement" required>
               <option disabled value="">Выберите автомобиль</option>
               <option v-for="car in alternatives" :key="car.id" :value="car.id">{{ profileName(car) }}</option>
@@ -184,8 +184,8 @@ function save() {
 
         <template v-else-if="active.kind === 'profile'">
           <div class="field-pair">
-            <label>Марка<input v-model="draft.make" required placeholder="Toyota" /></label>
-            <label>Модель<input v-model="draft.model" required placeholder="Aqua" /></label>
+            <label><span>Марка <span class="required-mark" aria-hidden="true">*</span></span><input v-model="draft.make" required placeholder="Toyota" /></label>
+            <label><span>Модель <span class="required-mark" aria-hidden="true">*</span></span><input v-model="draft.model" required placeholder="Aqua" /></label>
           </div>
           <label>Название профиля<input v-model="draft.name" /></label>
           <div class="field-pair">
@@ -197,7 +197,7 @@ function save() {
         </template>
 
         <template v-else-if="active.kind === 'note'">
-          <label>Название поля<input v-model="draft.title" required placeholder="Дворники" /></label>
+          <label><span>Название поля <span class="required-mark" aria-hidden="true">*</span></span><input v-model="draft.title" required placeholder="Дворники" /></label>
           <label>Значение<textarea v-model="draft.value" rows="4" placeholder="650 мм / 400 мм" /></label>
         </template>
 
@@ -207,20 +207,20 @@ function save() {
             <label><input v-model="draft.entryKind" type="radio" value="expense" /><span>Трата</span></label>
             <label><input v-model="draft.entryKind" type="radio" value="fuel" /><span>Заправка</span></label>
           </fieldset>
-          <label v-if="active.kind === 'oil'">Масло<input v-model="draft.oil" required placeholder="0W-20" /></label>
+          <label v-if="active.kind === 'oil'"><span>Масло <span class="required-mark" aria-hidden="true">*</span></span><input v-model="draft.oil" required placeholder="0W-20" /></label>
           <div class="field-pair">
-            <label>Дата<input v-model="draft.date" type="date" required /></label>
-            <label>Пробег, км<input v-model="draft.odometer" inputmode="numeric" required /></label>
+            <label><span>Дата <span class="required-mark" aria-hidden="true">*</span></span><input v-model="draft.date" type="date" required /></label>
+            <label><span>Пробег, км <span class="required-mark" aria-hidden="true">*</span></span><input v-model="draft.odometer" inputmode="numeric" required /></label>
           </div>
           <template v-if="active.kind === 'entry'">
             <div class="field-pair">
-              <label>Сумма, ₽<input v-model="draft.amount" inputmode="decimal" required /></label>
+              <label><span>Сумма, ₽ <span class="required-mark" aria-hidden="true">*</span></span><input v-model="draft.amount" inputmode="decimal" required /></label>
               <label v-if="draft.entryKind === 'expense'">Категория
                 <select v-model="draft.category">
                   <option v-for="category in categories" :key="category">{{ category }}</option>
                 </select>
               </label>
-              <label v-else>Цена за литр, ₽<input v-model="draft.litrePrice" inputmode="decimal" required /></label>
+              <label v-else><span>Цена за литр, ₽ <span class="required-mark" aria-hidden="true">*</span></span><input v-model="draft.litrePrice" inputmode="decimal" required /></label>
             </div>
             <template v-if="draft.entryKind === 'fuel'">
               <p v-if="litres !== null" class="field-hint">Объём заправки · {{ formatNumber(litres) }} л</p>
@@ -235,7 +235,7 @@ function save() {
 
       <footer class="editor-actions">
         <button v-if="confirming" type="button" class="button button-secondary" @click="setConfirm(false)">Назад</button>
-        <button v-else-if="active.record" type="button" class="button button-quiet danger-text" @click="setConfirm(true)">Удалить</button>
+        <button v-else-if="active.record && !profile?.demo" type="button" class="button button-quiet danger-text" @click="setConfirm(true)">Удалить</button>
         <button type="submit" class="button" :class="confirming ? 'button-danger' : 'button-primary'">
           {{ confirming ? 'Удалить' : 'Сохранить' }}
         </button>

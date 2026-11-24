@@ -71,7 +71,7 @@ export function createDemo(): Car {
   }))
 
   return {
-    id: crypto.randomUUID(),
+    id: 'demo-toyota-aqua',
     demo: true,
     make: 'Toyota',
     model: 'Aqua L',

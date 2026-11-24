@@ -73,6 +73,11 @@ export const vehicleName = (car: Profile) => `${car.make} ${car.model}`
 export const profileName = (car: Profile) => car.name || vehicleName(car)
 export const fuelLitres = (entry: Refuel) => entry.amount / entry.litrePrice
 
+export function createId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
 export function today(): string {
   const date = new Date()
   const month = String(date.getMonth() + 1).padStart(2, '0')

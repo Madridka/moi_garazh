@@ -105,17 +105,12 @@ h2 { font-size: 1.25rem; line-height: 1.2; letter-spacing: -.025em; }
 
 .demo-notice { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 9px; margin-bottom: 16px; padding: 10px 12px; border: 1px solid #d3e0d5; border-radius: 10px; background: var(--accent-soft); color: var(--accent-strong); font-size: .88rem; line-height: 1.35; }
 .garage-list { display: grid; gap: 10px; }
-.garage-card, .welcome { border: 1px solid var(--line); border-radius: 17px; background: var(--surface); }
-.garage-card { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 14px; }
+.garage-card { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 17px; background: var(--surface); }
 .garage-card-info { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
 .garage-card-info p { color: var(--muted); }
-.garage-labels, .garage-actions, .welcome-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.garage-labels, .garage-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .garage-label { padding: 3px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-strong); font-size: .78rem; font-weight: 650; }
 .demo-label { background: #edf0ec; color: var(--muted); }
-.welcome { display: grid; justify-items: start; gap: 14px; padding: clamp(20px, 5vw, 42px); }
-.welcome p { max-width: 35ch; color: var(--muted); line-height: 1.45; }
-.welcome-mark { width: 42px; height: 42px; border-radius: 12px; }
-.welcome-actions { gap: 8px; }
 
 .bottom-nav { position: fixed; z-index: 2; right: 0; bottom: 0; left: 0; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--line); background: var(--surface); }
 .nav-inner { display: flex; justify-content: center; gap: 7px; min-height: var(--nav-height); padding-block: 6px; }
@@ -154,6 +149,7 @@ h2 { font-size: 1.25rem; line-height: 1.2; letter-spacing: -.025em; }
 .record-types input:checked + span { background: #fff; color: var(--accent-strong); }
 .record-types input:focus-visible + span { outline: 2px solid var(--accent); }
 .field-hint { color: var(--muted); font-size: .9rem; line-height: 1.4; }
+.required-mark { color: var(--danger); }
 .error-message, .error-panel { padding: 10px 12px; border: 1px solid #e7c2bf; border-radius: 9px; background: #fff3f2; color: #852725; }
 .page-error { margin-bottom: 12px; }
 .error-panel { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }

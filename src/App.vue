@@ -3,8 +3,7 @@ import { computed, ref, shallowRef } from 'vue'
 import EditorDialog from './EditorDialog.vue'
 import ExpensesView from './ExpensesView.vue'
 import VehicleView from './VehicleView.vue'
-import { createDemo } from './demo'
-import { profileName, vehicleName } from './domain'
+import { createId, profileName, vehicleName } from './domain'
 import type { Car, Entry, Note, OilChange } from './domain'
 import type { Editor, EditorValue } from './editor'
 import { RecordMissingError, useGarage } from './garage'
@@ -20,7 +19,7 @@ const pageError = ref('')
 
 const primary = computed(() => garage.value.cars.find(({ id }) => id === garage.value.primaryCarId))
 const current = computed(() => garage.value.cars.find(({ id }) => id === viewedId.value) ?? primary.value)
-const demo = computed(() => garage.value.cars.find((car) => car.demo))
+const hasOwnCar = computed(() => garage.value.cars.some((car) => !car.demo))
 
 function show(next: Page) {
   if (next === page.value) return
@@ -37,20 +36,6 @@ function openCar(car: Car) {
 function makePrimary(car: Car) {
   pageError.value = save((draft) => { draft.primaryCarId = car.id })
   if (!pageError.value && viewedId.value === car.id) viewedId.value = null
-}
-
-function addDemo() {
-  if (demo.value) {
-    openCar(demo.value)
-    return
-  }
-
-  const car = createDemo()
-  pageError.value = save((draft) => {
-    draft.cars.push(car)
-    draft.primaryCarId ??= car.id
-  })
-  if (!pageError.value) openCar(car)
 }
 
 function open(next: Editor) {
@@ -90,9 +75,10 @@ function saveEditor(data: EditorValue) {
   const active = editor.value
   if (!active || active.kind !== data.kind) return
   const originalId = active.record?.id
-  const id = originalId ?? crypto.randomUUID()
+  let addedCarId: string | undefined
 
   editorError.value = save((draft) => {
+    const id = originalId ?? createId()
     if (active.kind === 'profile' && data.kind === 'profile') {
       if (originalId) {
         const car = draft.cars.find((car) => car.id === originalId)
@@ -100,7 +86,7 @@ function saveEditor(data: EditorValue) {
         Object.assign(car, data.value)
       } else {
         draft.cars.push({ ...data.value, id, notes: [], entries: [], oilChanges: [] })
-        draft.primaryCarId ??= id
+        addedCarId = id
       }
       return
     }
@@ -115,8 +101,8 @@ function saveEditor(data: EditorValue) {
 
   if (editorError.value) return
   close()
-  if (data.kind === 'profile' && !originalId) {
-    const added = garage.value.cars.find((car) => car.id === id)
+  if (addedCarId) {
+    const added = garage.value.cars.find((car) => car.id === addedCarId)
     if (added) openCar(added)
   }
 }
@@ -131,6 +117,7 @@ function removeEditor(replacement: string) {
   const active = editor.value
   const id = active?.record?.id
   if (!active || !id) return
+  if (active.kind === 'profile' && active.record?.demo) return
 
   editorError.value = save((draft) => {
     if (active.kind === 'profile') {
@@ -161,7 +148,7 @@ function removeEditor(replacement: string) {
       <div class="frame topbar-inner">
         <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>Мой гараж</span></div>
         <button v-if="current" type="button" class="vehicle-switch" aria-label="Открыть гараж" @click="show('garage')">
-          <span class="vehicle-switch-text"><strong>{{ profileName(current) }}</strong><span>{{ current.id === garage.primaryCarId ? 'Главное авто' : 'Просмотр профиля' }}</span></span>
+          <span class="vehicle-switch-text"><strong>{{ profileName(current) }}</strong><span>{{ current.demo ? 'Демо-авто' : current.id === garage.primaryCarId ? 'Главное авто' : 'Просмотр профиля' }}</span></span>
           <span class="switch-chevron" aria-hidden="true"></span>
         </button>
       </div>
@@ -175,19 +162,10 @@ function removeEditor(replacement: string) {
       <p v-if="pageError && !loadError" class="error-message page-error" role="alert">{{ pageError }}</p>
 
       <template v-if="!loadError">
-        <section v-if="!current" class="welcome" aria-labelledby="welcome-title">
-          <div class="welcome-mark brand-mark" aria-hidden="true"></div>
-          <h1 id="welcome-title">Добавьте автомобиль</h1>
-          <p>Ведите журнал расходов, храните историю замен масла и полезные сведения об авто.</p>
-          <div class="welcome-actions">
-            <button type="button" class="button button-primary" @click="open({ kind: 'profile' })"><span class="plus" aria-hidden="true">+</span> Добавить авто</button>
-            <button type="button" class="button button-secondary" @click="addDemo">Добавить демо-авто</button>
-          </div>
-        </section>
-
-        <template v-else>
+        <template v-if="current">
           <div v-if="current.demo && page !== 'garage'" class="demo-notice">
             <strong>Демо-профиль</strong><span>Расходы и история обслуживания приведены для примера.</span>
+            <button v-if="!hasOwnCar" type="button" class="button button-secondary" @click="open({ kind: 'profile' })">Добавить своё авто</button>
           </div>
 
           <ExpensesView v-if="page === 'expenses'" :key="current.id" :car="current" @add="editEntry" @edit="editEntry($event.kind, $event)" />
@@ -215,7 +193,6 @@ function removeEditor(replacement: string) {
                 </div>
               </li>
             </ul>
-            <div><button type="button" class="button button-secondary" @click="addDemo">{{ demo ? 'Открыть демо-авто' : 'Добавить демо-авто' }}</button></div>
           </div>
         </template>
       </template>

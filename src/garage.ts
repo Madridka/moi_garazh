@@ -1,4 +1,5 @@
 import { shallowRef } from 'vue'
+import { createDemo } from './demo'
 import type { Garage } from './domain'
 
 const storageKey = 'moy-garazh:auto:garage'
@@ -8,18 +9,18 @@ function emptyGarage(): Garage {
 }
 
 function readGarage(raw: string | null): Garage {
-  if (raw === null) return emptyGarage()
-  const saved = JSON.parse(raw) as Garage | null
+  const saved = raw === null ? emptyGarage() : JSON.parse(raw) as Garage | null
   if (saved?.version !== 1 || !Array.isArray(saved.cars)) throw new Error('Invalid garage data')
   if (!saved.cars.every((car) => car && typeof car.id === 'string'
     && typeof car.make === 'string' && typeof car.model === 'string'
     && Array.isArray(car.entries) && Array.isArray(car.oilChanges) && Array.isArray(car.notes))) {
     throw new Error('Invalid car data')
   }
-  const primaryCarId = saved.cars.some((car) => car.id === saved.primaryCarId)
+  const cars = saved.cars.some((car) => car.demo) ? saved.cars : [...saved.cars, createDemo()]
+  const primaryCarId = cars.some((car) => car.id === saved.primaryCarId)
     ? saved.primaryCarId
-    : saved.cars[0]?.id ?? null
-  return { ...saved, primaryCarId }
+    : cars[0].id
+  return { ...saved, cars, primaryCarId }
 }
 
 export function useGarage() {
@@ -48,7 +49,7 @@ export function useGarage() {
         if (!reload()) return loadError.value
         return 'Данные обновились в другой вкладке. Проверьте запись и повторите действие.'
       }
-      const next = structuredClone(garage.value)
+      const next = readGarage(savedRaw)
       change(next)
       const raw = JSON.stringify(next)
       localStorage.setItem(storageKey, raw)
